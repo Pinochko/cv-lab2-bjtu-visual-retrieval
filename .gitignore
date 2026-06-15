@@ -30,3 +30,8 @@ outputs/**/*.jpg
 
 # Keep the directory placeholder pattern available if you add one later.
 !.gitkeep
+
+# Local report deliverables. Keep them on disk but do not publish through Git.
+docs/实验2报告-校园地标图像检索与检测可视化.docx
+docs/实验2报告-校园地标图像检索与检测可视化.pdf
+docs/实验报告草稿.md
