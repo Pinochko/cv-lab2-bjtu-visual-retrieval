@@ -1,260 +1,178 @@
-# Computer Vision Lab 2 Project
+# 计算机视觉基础实验二：校园地标图像检索与检测可视化
 
-This project is the working folder for `实验2-260517.pptx`.
+本项目用于完成《计算机视觉基础》实验二，主要包含两个部分：
 
-## Goal
+1. 图像检索：给定 query 图像，在 base 图像库中检索相似校园地标图像，并使用 P@20、P@40、P@60 进行评价。
+2. 检测可视化：读取数据集中提供的标注 JSON，在图像上绘制检测框，展示检索结果与检测结果。
 
-Finish two required tasks:
+最终主要方案采用 ImageNet 预训练 ResNet50 提取深度特征进行图像检索。该方法没有使用本实验数据集的类别标签进行训练，类别标签仅由文件名前缀解析，并只用于最终评价。
 
-1. Image retrieval: use query images to retrieve similar images from the base image database.
-2. Text/object detection visualization: show text detection boxes for retrieved BJTU landmark images.
+## 项目结构
 
-## Data
+```text
+cv_lab2_project/
+├── configs/
+│   └── config.yaml
+├── docs/
+│   ├── demo_video.mp4
+│   ├── requirements_breakdown.md
+│   └── report_assets_preview/
+├── src/
+│   ├── check_data.py
+│   ├── run_retrieval.py
+│   ├── run_retrieval_sift_bovw.py
+│   ├── run_retrieval_deep.py
+│   ├── evaluate_retrieval.py
+│   ├── compare_methods.py
+│   ├── visualize_retrieval.py
+│   ├── visualize_detection.py
+│   └── prepare_report_assets.py
+├── requirements.txt
+└── README.md
+```
 
-The project does not copy the raw dataset. The default config points to:
+原始数据集和虚拟环境未上传到 GitHub，避免仓库体积过大。默认配置假设数据集位于项目上一级目录：
 
-- `../image_retrieval/base`
-- `../image_retrieval/query`
-- `../object_detection/data`
+```text
+../image_retrieval/base
+../image_retrieval/query
+../object_detection/data
+```
 
-Run commands from this folder:
+## 环境配置
+
+进入项目目录：
 
 ```powershell
 cd D:\计算机视觉基础\cv_lab2_project
 ```
 
-## Environment
-
-The recommended local virtual environment is `.venv`.
-
-Activate it before running scripts:
+创建并激活虚拟环境后安装依赖：
 
 ```powershell
+python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-```
-
-Install dependencies if the environment needs to be rebuilt:
-
-```powershell
 python -m pip install -r requirements.txt
 ```
 
-Installed acceleration libraries:
+主要使用的库包括：
 
-- `numpy`: vectorized feature extraction and similarity calculation.
-- `pandas`: result tables and CSV files.
-- `pillow`: image loading, resizing, drawing and contact sheets.
-- `opencv-python`: image processing, ORB/SIFT-style feature experiments.
-- `scikit-learn`: nearest-neighbor retrieval, normalization and metrics.
-- `matplotlib`: Precision@K figures for the report.
-- `tqdm`: progress bars for long image loops.
-- `pyyaml`: config loading.
+| 库 | 用途 |
+| --- | --- |
+| NumPy | 特征向量计算、矩阵相似度计算 |
+| Pandas | 检索结果和评价指标表格处理 |
+| Pillow | 图像读取、绘制、拼接可视化结果 |
+| OpenCV | 传统特征、SIFT/BoVW 特征实验 |
+| scikit-learn | 特征归一化、KMeans、评价辅助 |
+| Matplotlib | 绘制 P@K 曲线和方法对比图 |
+| PyTorch / Torchvision | 加载 ResNet50 并提取深度特征 |
+| tqdm | 长任务进度显示 |
+| PyYAML | 读取配置文件 |
 
-## Step-By-Step Workflow
+## 实验方法
 
-### Step 0. Check Data
+本项目实现并比较了三种图像检索方法：
 
-Confirm that images and annotations can be read.
+| 方法 | 简介 |
+| --- | --- |
+| Color+Structure | HSV 颜色直方图 + 灰度缩略图结构特征 |
+| SIFT-BoVW | SIFT 局部特征 + Bag of Visual Words 词袋表示 |
+| ResNet50 | ImageNet 预训练 ResNet50 深度特征 |
 
-```powershell
-python src/check_data.py --config configs/config.yaml
-```
+其中 ResNet50 是最终采用的主方法，原因是它对建筑地标的语义、纹理和局部结构表达更强，检索准确率明显高于传统手工特征。
 
-Expected output:
+## 运行步骤
 
-- base image count
-- query image count
-- object detection image/json count
-- landmark distribution
-- warning list for missing image/json pairs
-
-### Step 1. Build Retrieval Baseline
-
-Run the implemented accelerated baseline:
+检查数据集路径和标注文件：
 
 ```powershell
-python src/run_retrieval.py --config configs/config.yaml
+python src\check_data.py --config configs\config.yaml
 ```
 
-It extracts HSV color histogram + grayscale thumbnail structure features with OpenCV/NumPy, then uses cosine similarity to retrieve Top-60 results.
-
-Debug run with a small subset:
+运行颜色和结构特征基线：
 
 ```powershell
-python src/run_retrieval.py --config configs/config.yaml --max-base 300 --max-query 5
+python src\run_retrieval.py --config configs\config.yaml
+python src\evaluate_retrieval.py --config configs\config.yaml
 ```
 
-Expected outputs:
-
-- `outputs/retrieval/features_color_struct.npz`
-- `outputs/retrieval/retrieval_results.csv`
-- `outputs/retrieval/feature_failures.csv`
-
-### Step 2. Evaluate Precision@K
-
-Compute P@20, P@40 and P@60 by filename prefix.
+运行 SIFT-BoVW 检索：
 
 ```powershell
-python src/evaluate_retrieval.py --config configs/config.yaml
+python src\run_retrieval_sift_bovw.py --config configs\config.yaml --output-dir outputs\retrieval_sift --vocab-size 256 --dictionary-max-images 2000 --dictionary-max-descriptors 120000 --image-size 640 --max-keypoints 500 --max-descriptors-per-image 120
+python src\evaluate_retrieval.py --config configs\config.yaml --results outputs\retrieval_sift\retrieval_results.csv --output-dir outputs\retrieval_sift --figures-dir outputs\figures_sift
 ```
 
-Expected outputs:
-
-- `outputs/retrieval/precision_at_k.csv`
-- `outputs/retrieval/precision_at_k_by_query.csv`
-- `outputs/figures/p_at_k_<landmark>.png`
-- `outputs/figures/p_at_k_all_landmarks.png`
-
-Current color+structure baseline summary:
-
-- Overall P@20: 0.1381
-- Overall P@40: 0.1019
-- Overall P@60: 0.0896
-
-This is a runnable baseline, but the retrieval quality is weak. A stronger feature method should be added before final submission if time allows.
-
-### Step 2b. Build SIFT-BoVW Retrieval
-
-Run the SIFT Bag-of-Visual-Words method:
+运行 ResNet50 深度特征检索：
 
 ```powershell
-python src/run_retrieval_sift_bovw.py --config configs/config.yaml --output-dir outputs/retrieval_sift --vocab-size 256 --dictionary-max-images 2000 --dictionary-max-descriptors 120000 --image-size 640 --max-keypoints 500 --max-descriptors-per-image 120
+python src\run_retrieval_deep.py --config configs\config.yaml --output-dir outputs\retrieval_resnet50 --model resnet50 --batch-size 16
+python src\evaluate_retrieval.py --config configs\config.yaml --results outputs\retrieval_resnet50\retrieval_results.csv --output-dir outputs\retrieval_resnet50 --figures-dir outputs\figures_resnet50
 ```
 
-Evaluate SIFT-BoVW:
+生成三种方法对比结果：
 
 ```powershell
-python src/evaluate_retrieval.py --config configs/config.yaml --results outputs/retrieval_sift/retrieval_results.csv --output-dir outputs/retrieval_sift --figures-dir outputs/figures_sift
+python src\compare_methods.py --config configs\config.yaml --output-dir outputs\comparison
 ```
 
-Expected outputs:
-
-- `outputs/retrieval_sift/retrieval_results.csv`
-- `outputs/retrieval_sift/features_sift_bovw.npz`
-- `outputs/retrieval_sift/precision_at_k.csv`
-- `outputs/figures_sift/p_at_k_<landmark>.png`
-- `outputs/figures_sift/p_at_k_all_landmarks.png`
-
-SIFT-BoVW summary:
-
-- Overall P@20: 0.1856
-- Overall P@40: 0.1526
-- Overall P@60: 0.1400
-
-Compared with the color+structure baseline, SIFT-BoVW improves all overall P@K scores and is the better retrieval method for the report.
-
-### Step 2c. Build Deep Feature Retrieval
-
-Run ImageNet-pretrained ResNet50 feature retrieval:
+生成检索样例图和检测可视化图：
 
 ```powershell
-python src/run_retrieval_deep.py --config configs/config.yaml --output-dir outputs/retrieval_resnet50 --model resnet50 --batch-size 16
+python src\visualize_retrieval.py --config configs\config.yaml --results outputs\retrieval_resnet50\retrieval_results.csv --output-dir outputs\demo_cases_resnet50 --top-n 5 --cases-per-landmark 2
+python src\visualize_detection.py --config configs\config.yaml --manifest outputs\demo_cases_resnet50\manifest.csv --output-dir outputs\detection_resnet50 --combined-dir outputs\demo_retrieval_detection_resnet50
 ```
 
-Evaluate ResNet50:
+整理报告素材：
 
 ```powershell
-python src/evaluate_retrieval.py --config configs/config.yaml --results outputs/retrieval_resnet50/retrieval_results.csv --output-dir outputs/retrieval_resnet50 --figures-dir outputs/figures_resnet50
+python src\prepare_report_assets.py --config configs\config.yaml
 ```
 
-Expected outputs:
+## 实验结果
 
-- `outputs/retrieval_resnet50/retrieval_results.csv`
-- `outputs/retrieval_resnet50/features_resnet50.npz`
-- `outputs/retrieval_resnet50/precision_at_k.csv`
-- `outputs/figures_resnet50/p_at_k_<landmark>.png`
+三种检索方法的整体评价结果如下：
 
-ResNet50 uses ImageNet-pretrained features only. It does not use this dataset's landmark labels for training, so labels are still used only for evaluation.
-
-### Step 2d. Compare Retrieval Methods
-
-Generate a comparison table and figures for all three retrieval methods:
-
-```powershell
-python src/compare_methods.py --config configs/config.yaml --output-dir outputs/comparison
-```
-
-Current overall comparison:
-
-| Method | P@20 | P@40 | P@60 |
+| 方法 | P@20 | P@40 | P@60 |
 | --- | ---: | ---: | ---: |
 | Color+Structure | 0.1381 | 0.1019 | 0.0896 |
 | SIFT-BoVW | 0.1856 | 0.1526 | 0.1400 |
 | ResNet50 | 0.8311 | 0.7874 | 0.7531 |
 
-The ResNet50 feature extractor is the strongest retrieval method and should be used as the main result in the report.
+可以看到，ResNet50 在 P@20、P@40、P@60 三个指标上均取得最高结果，最终作为本实验的主要检索方案。
 
-### Step 3. Visualize Retrieval Results
+部分报告预览素材保存在：
 
-Create contact sheets for selected query images.
-
-```powershell
-python src/visualize_retrieval.py --config configs/config.yaml --results outputs/retrieval_sift/retrieval_results.csv --output-dir outputs/demo_cases_sift --top-n 5 --cases-per-landmark 2
+```text
+docs/report_assets_preview/
 ```
 
-Expected outputs:
+其中包含方法对比图和若干检索-检测联合可视化样例。
 
-- `outputs/demo_cases_sift/<landmark>_case_<n>_<query_stem>_retrieval.jpg`
-- `outputs/demo_cases_sift/manifest.csv`
+## 检测可视化
 
-Visualization legend:
+检测部分使用数据集中提供的 LabelMe JSON 标注文件。程序读取标注中的目标框，并绘制到对应图像上，用于展示文本或目标区域的检测结果。
 
-- Blue border: query image.
-- Green border: retrieved image with the same filename prefix.
-- Red border: retrieved image with a different filename prefix.
+检测可视化脚本会生成两类结果：
 
-### Step 4. Visualize Text Detection
+1. 单独的检测框图像。
+2. 检索结果与检测框结合的联合展示图像。
 
-Use LabelMe json boxes as the reliable text detection visualization baseline.
+最终生成了 24 组检索-检测联合样例，对应 12 类地标，每类 2 组。
 
-```powershell
-python src/visualize_detection.py --config configs/config.yaml --manifest outputs/demo_cases_resnet50/manifest.csv --output-dir outputs/detection_resnet50 --combined-dir outputs/demo_retrieval_detection_resnet50
+## 演示视频
+
+演示视频已放在仓库中：
+
+```text
+docs/demo_video.mp4
 ```
 
-Expected outputs:
+视频内容包括项目结构、实验任务、三种检索方法对比、ResNet50 检索效果、P@K 指标结果，以及检索和检测可视化样例。
 
-- `outputs/detection_resnet50/<landmark>_case_<n>_<query_stem>_detection.jpg`
-- `outputs/demo_retrieval_detection_resnet50/<landmark>_case_<n>_<query_stem>_retrieval_detection.jpg`
-- `outputs/demo_retrieval_detection_resnet50/manifest.csv`
+## 说明
 
-Current output contains 24 aligned retrieval-detection cases: 12 landmarks x 2 cases.
-
-### Step 5. Prepare Report Assets
-
-Collect result tables and 24 visualization groups for the report.
-
-```powershell
-python src/prepare_report_assets.py --config configs/config.yaml
-```
-
-Expected outputs:
-
-- `outputs/report_assets/tables`
-- `outputs/report_assets/figures`
-- `outputs/report_assets/cases_retrieval_detection`
-- `outputs/report_assets/cases_retrieval_only`
-- `outputs/report_assets/cases_detection_only`
-- `outputs/report_assets/asset_manifest.csv`
-- `outputs/report_assets/asset_summary.csv`
-
-Current report assets contain 95 items, including:
-
-- 5 result tables
-- 16 figures
-- 24 retrieval-detection cases
-- 24 retrieval-only cases
-- 24 detection-only cases
-
-## Submission Checklist
-
-- PDF experiment report
-- Source code repository link
-- README with run commands
-- Demo video with 3-5 test examples
-- No source code pasted into the report
-
-## Demo Video
-
-The experiment demo video is stored at:
-
-- `docs/demo_video.mp4`
+- 本项目不上传原始数据集。
+- 本项目不上传 `.venv` 虚拟环境。
+- `outputs/` 目录中的大规模中间结果和缓存文件默认不纳入 Git。
+- 类别标签仅用于评价，不参与模型训练。
