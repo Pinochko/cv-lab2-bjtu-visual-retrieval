@@ -1,0 +1,32 @@
+.venv/
+__pycache__/
+*.pyc
+
+# Raw datasets are stored outside this project.
+../image_retrieval/
+../object_detection/
+
+# Large generated caches/results. Keep report-ready assets selectively if needed.
+outputs/retrieval/
+outputs/retrieval_sift/
+outputs/retrieval_sift_debug/
+outputs/retrieval_resnet50/
+outputs/retrieval_resnet50_debug/
+outputs/figures/
+outputs/figures_sift/
+outputs/figures_sift_debug/
+outputs/figures_resnet50/
+outputs/comparison/
+outputs/detection_resnet50/
+outputs/demo_cases_resnet50/
+outputs/demo_retrieval_detection_resnet50/
+outputs/report_assets/
+outputs/report_assets/cases_detection_only/
+outputs/report_assets/cases_retrieval_only/
+outputs/report_assets/cases_retrieval_detection/
+outputs/**/*.npz
+outputs/**/*.csv
+outputs/**/*.jpg
+
+# Keep the directory placeholder pattern available if you add one later.
+!.gitkeep

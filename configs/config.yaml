@@ -1,0 +1,44 @@
+project:
+  name: cv_lab2_project
+  random_seed: 42
+
+data:
+  image_retrieval_root: "../image_retrieval"
+  retrieval_base_dir: "../image_retrieval/base"
+  retrieval_query_dir: "../image_retrieval/query"
+  object_detection_dir: "../object_detection/data"
+  landmark_prefixes:
+    - fhy
+    - jx
+    - kx
+    - mh
+    - nm
+    - sjz
+    - sy
+    - tsg
+    - ty
+    - yf
+    - yk
+    - zx
+
+retrieval:
+  top_k:
+    - 20
+    - 40
+    - 60
+  feature_method: color_histogram
+  image_size: 224
+  histogram_bins: 8
+
+detection:
+  # Baseline stage uses LabelMe json annotations for visualization.
+  # A detector model can be added after retrieval baseline is complete.
+  annotation_format: labelme
+  demo_cases_per_landmark: 2
+
+outputs:
+  root: "outputs"
+  retrieval_dir: "outputs/retrieval"
+  detection_dir: "outputs/detection"
+  figures_dir: "outputs/figures"
+  demo_cases_dir: "outputs/demo_cases"
