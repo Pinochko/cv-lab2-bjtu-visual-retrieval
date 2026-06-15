@@ -252,3 +252,9 @@ Current report assets contain 95 items, including:
 - README with run commands
 - Demo video with 3-5 test examples
 - No source code pasted into the report
+
+## Demo Video
+
+The experiment demo video is stored at:
+
+- `docs/demo_video.mp4`
